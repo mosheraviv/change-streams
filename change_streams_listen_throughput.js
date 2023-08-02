@@ -22,8 +22,6 @@
  *
  * Supports replica sets and sharded clusters but not standalone instances.
  *
- * ### *Owning-team*
- * mongodb/replication
  * 
  * ### *Keywords*
  * 
@@ -48,8 +46,7 @@ function cleanup(dbToTest) {
 /**
  * Initialize the oplog by inserting 'numDocs' documents into a test collection and then dropping
  * the collection. Note that the data itself is not important; we only need the commands to be in
- * the oplog. That being said, we have found that using a trivially small document size leads to
- * noise in the perf numbers, so we pad the documents to be roughly 1 KiB. This size means that
+ * the oplog. That being said, I did pad the documents to be roughly 1 KiB. This size means that
  * trivial changes to the change stream output format do not significantly affect the throughput.
  *
  * Returns a resume token that can be used to start a change stream from just before the insert
