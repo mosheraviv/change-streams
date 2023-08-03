@@ -1,0 +1,152 @@
+command_type: system
+
+pre: []
+
+post: []
+
+
+functions:
+  setup_tests:
+    - command: git.get_project
+      params:
+        directory: src
+    - command: git.apply_patch
+      params:
+        directory: src
+    - command: shell.exec
+      type: test
+      params:
+        working_dir: src
+        script: |
+          set -eou pipefail
+          echo "installing eslint"
+          wget -q https://s3.amazonaws.com/boxes.10gen.com/build/eslint-2.3.0-linux.tar.gz
+          tar xzf eslint-2.3.0-linux.tar.gz
+          mv eslint-Linux-x86_64 /usr/local/bin/eslint
+          chmod a+x /usr/local/bin/eslint
+          echo "building credentials file"
+          cat > config.yml << END_OF_CREDS
+          {
+            evergreen: {
+              user: "xgen-evg-user",
+              api_key: ${evergreen_token},
+              ui_server_host: "https://evergreen.mongodb.com"
+            },
+            github: {
+              token: ${github_token}
+            }
+          }
+          END_OF_CREDS
+
+  lint:
+    - command: shell.exec
+      type: test
+      params:
+        working_dir: src
+        script: |
+          PATH="/opt/node/bin:$PATH" ./bin/lint
+
+  build_docs:
+    - command: shell.exec
+      type: test
+      params:
+        working_dir: src
+        script: |
+          set -eou pipefail
+          PATH="/opt/node/bin:$PATH"
+          if ! hash jsdoc 2>/dev/null ; then
+          echo "jsdoc not installed"
+          /opt/node/bin/npm install -g jsdoc@3.5.5
+          fi
+          echo "Generating Documentation"
+          ./jsdoc/generate.sh
+
+  upload_docs:
+    - command: s3.put
+      params:
+        aws_key: ${aws_key}
+        aws_secret: ${aws_secret}
+        local_file: src/html.tgz
+        remote_file: ${project}/${revision}/${version_id}/logs/workloads.tgz
+        bucket: mciuploads
+        permissions: public-read
+        content_type: ${content_type|application/x-gzip}
+        display_name: workloads-html.tgz
+
+  sync_docs:
+    - command: s3.get
+      params:
+        aws_key: ${aws_key}
+        aws_secret: ${aws_secret}
+        local_file: src/html.tgz
+        remote_file: ${project}/${revision}/${version_id}/logs/workloads.tgz
+        bucket: mciuploads
+    - command: shell.exec
+      silent: true
+      params:
+        working_dir: src
+        script: |
+          echo "export AWS_ACCESS_KEY_ID=${aws_key}" > aws_settings
+          echo "export AWS_SECRET_ACCESS_KEY=${aws_secret}" >> aws_settings
+          echo "export EC2_URL=https://ec2.us-west-2.amazonaws.com" >> aws_settings
+    - command: shell.exec
+      type: test
+      params:
+        working_dir: src
+        script: |
+          ls
+          echo "Installing awscli"
+          pip install --user awscli --upgrade
+          echo "awscli installed"
+          source ./aws_settings
+          echo "Sourced aws_settings"
+          tar -zxvf html.tgz
+          echo "untarred"
+          echo "ls workloads"
+          /root/.local/bin/aws s3 ls s3://sys-perf-workloads/
+          echo "ls workloads/fonts"
+          /root/.local/bin/aws s3 ls s3://sys-perf-workloads/fonts
+          echo "ls workloads/scripts"
+          /root/.local/bin/aws s3 ls s3://sys-perf-workloads/scripts
+          echo "ls workloads/styles"
+          /root/.local/bin/aws s3 ls s3://sys-perf-workloads/styles
+          echo "Do the sync"
+          /root/.local/bin/aws s3 sync html s3://sys-perf-workloads/ --delete
+
+#######################################
+#               Tasks                 #
+#######################################
+tasks:
+  - name: lint
+    commands:
+      - func: setup_tests
+      - func: lint
+  - name: docs
+    commands:
+      - func: setup_tests
+      - func: build_docs
+      - func: upload_docs
+  # According to Sam K push has special meaning in evergreen and is appropriate here.
+  - name: push
+    patchable: false
+    depends_on:
+      name: docs
+    commands:
+      - func: setup_tests
+      - func: sync_docs
+
+
+#######################################
+#            Buildvariants            #
+#######################################
+
+buildvariants:
+  - name: linux-runner
+    display_name: Linux
+    run_on:
+      - rhel70-small
+    tasks:
+      # Disabled lint in this repo due to mystery "Unexpected token" failure in *.js program.
+      # - name: lint
+      - name: docs
+      - name: push

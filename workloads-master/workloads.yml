@@ -1,0 +1,106 @@
+#######################################################################
+#
+# Configuration File for custom workloads
+#
+#######################################################################
+
+
+########################################################################
+#
+# Test lists. Command line will indicate which list of tests to execute.
+# The 'default' list is the default.
+#
+# When testing new test workloads, please put your tests in the
+# tests.test list, and remove the existing hello.js If you are running
+# the tests as part of the syst-perf project, you will need to update
+# the test_control configuration files in that repo.
+ ########################################################################
+
+tests:
+  default:
+    - contended_update.js
+    - map_reduce.js
+    - insert_capped.js
+    - insert_ttl.js
+    - insert_capped_indexes.js
+    - insert_vector.js
+    - word_count.js
+    - crud.js
+    - move_chunk.js
+    - move_chunk_with_load.js
+  # This is left in until PERF-510 completes.
+  initialsync-logkeeper:
+    - large_initialsync.js
+  initialsync:
+    - initialsync.js
+  initialsync-large:
+    - initialsync.js
+      num_docs: 17408
+      string_field_size: 307200
+  initialsync_c_1_d_1_w_f:
+    - initialsync.js:
+       num_collections: 1
+       num_dbs: 1
+       write_load: false
+  initialsync_c_1_d_32_w_f:
+    - initialsync.js:
+       num_collections: 1
+       num_dbs: 32
+       write_load: false
+  initialsync_c_32_d_1_w_f:
+    - initialsync.js:
+       num_collections: 32
+       num_dbs: 1
+       write_load: false
+  initialsync_c_32_d_32_w_f:
+    - initialsync.js:
+       num_collections: 32
+       num_dbs: 32
+       write_load: false
+  initialsync_c_1_d_1_w_t:
+    - initialsync.js:
+       num_collections: 1
+       num_dbs: 1
+       write_load: true
+  initialsync_c_1_d_32_w_t:
+    - initialsync.js:
+       num_collections: 1
+       num_dbs: 32
+       write_load: true
+  initialsync_c_32_d_1_w_t:
+    - initialsync.js:
+       num_collections: 32
+       num_dbs: 1
+       write_load: true
+  initialsync_c_32_d_32_w_t:
+    - initialsync.js:
+       num_collections: 32
+       num_dbs: 32
+       write_load: true
+  correctness:
+    - election_timing.js
+    - election_timing_workload.js
+  test: # Put new workloads here when testing
+    - hello.js:
+       parameter1: foo
+       parameter2: true
+    - hello.js:
+       - parameter1: foo
+         parameter2: 0
+       - parameter1: bar
+         parameter2: "t1"
+
+
+###############################
+#
+# Test configuration settings
+#
+###############################
+
+# Mongod or Mongos host to connect to
+target: localhost
+# Mongod or Mongod port to connect to
+port: 27017
+sharded: false
+replica: false
+shell: ~/bin/mongo

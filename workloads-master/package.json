@@ -1,0 +1,6 @@
+{
+  "name": "workloads",
+  "devDependencies": {
+    "eslint": "^5.4.0"
+  }
+}
